@@ -1,0 +1,140 @@
+{
+    "type": "object",
+    "properties": {
+        "apiName": {
+            "type": "string",
+            "description": "参数apiName"
+        },
+        "source": {
+            "type": "string",
+            "description": "来源",
+            "enum": [
+                "FIXED_VALUE",
+                "EXPRESSION",
+                "SUB_MAPPING",
+                "SUB_ARRAY_MAPPING",
+                "CONDITION"
+            ],
+            "x-apifox-enum": [
+                {
+                    "value": "FIXED_VALUE",
+                    "name": "FIXED_VALUE",
+                    "description": "固定值"
+                },
+                {
+                    "value": "EXPRESSION",
+                    "name": "EXPRESSION",
+                    "description": "表达式"
+                },
+                {
+                    "value": "SUB_MAPPING",
+                    "name": "SUB_MAPPING",
+                    "description": "子表映射，"
+                },
+                {
+                    "value": "SUB_ARRAY_MAPPING",
+                    "name": "SUB_ARRAY_MAPPING",
+                    "description": "子表数组映射，"
+                },
+                {
+                    "value": "CONDITION",
+                    "name": "CONDITION",
+                    "description": "条件绑定"
+                }
+            ]
+        },
+        "fixedValue": {
+            "type": "object",
+            "properties": {},
+            "description": "固定值",
+            "x-apifox-orders": []
+        },
+        "expression": {
+            "type": "string",
+            "description": "表达式"
+        },
+        "valueType": {
+            "type": "string",
+            "description": "空则认为是String，在条件表达式中，根据此判断要转换的操作方式。",
+            "enum": [
+                "STRING",
+                "NUMBER",
+                "BOOLEAN",
+                "ARRAY",
+                "ARRAY_NUMBER",
+                "ARRAY_STRING",
+                "ARRAY_BOOLEAN",
+                "OBJECT",
+                "ARRAY_OBJECT"
+            ],
+            "x-apifox-enum": [
+                {
+                    "value": "STRING",
+                    "name": "STRING",
+                    "description": "STRING"
+                },
+                {
+                    "value": "NUMBER",
+                    "name": "NUMBER",
+                    "description": "NUMBER"
+                },
+                {
+                    "value": "BOOLEAN",
+                    "name": "BOOLEAN",
+                    "description": "BOOLEAN"
+                },
+                {
+                    "value": "ARRAY",
+                    "name": "ARRAY",
+                    "description": "ARRAY"
+                },
+                {
+                    "value": "ARRAY_NUMBER",
+                    "name": "ARRAY_NUMBER",
+                    "description": "ARRAY_NUMBER"
+                },
+                {
+                    "value": "ARRAY_STRING",
+                    "name": "ARRAY_STRING",
+                    "description": "ARRAY_STRING"
+                },
+                {
+                    "value": "ARRAY_BOOLEAN",
+                    "name": "ARRAY_BOOLEAN",
+                    "description": "ARRAY_BOOLEAN"
+                },
+                {
+                    "value": "OBJECT",
+                    "name": "OBJECT",
+                    "description": "OBJECT"
+                },
+                {
+                    "value": "ARRAY_OBJECT",
+                    "name": "ARRAY_OBJECT",
+                    "description": "ARRAY_OBJECT"
+                }
+            ]
+        },
+        "subMappings": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/214596114",
+                "description": ""
+            },
+            "description": "子表映射，key为参数apiName；用于支持子表映射 和 子表数组映射"
+        },
+        "compositeConditionMapping": {
+            "$ref": "#/definitions/206462654",
+            "description": "条件表达式绑定"
+        }
+    },
+    "x-apifox-orders": [
+        "apiName",
+        "source",
+        "fixedValue",
+        "expression",
+        "valueType",
+        "subMappings",
+        "compositeConditionMapping"
+    ]
+}
