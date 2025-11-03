@@ -130,3 +130,93 @@ export function getNodePathDescription(node) {
   
   return node.path.join(' → ')
 }
+
+/**
+ * 根据 JSONPath 表达式计算值
+ * @param {Object} data - 数据对象
+ * @param {string} jsonPath - JSONPath 表达式，例如 '$.querySfOrder.TotalAmount'
+ * @returns {*} 计算结果
+ */
+export function evaluateJsonPath(data, jsonPath) {
+  if (!jsonPath || !jsonPath.startsWith('$')) {
+    throw new Error('Invalid JSONPath: must start with $')
+  }
+  
+  // 移除开头的 '$'
+  let path = jsonPath.substring(1)
+  
+  // 如果路径为空，返回根对象
+  if (!path || path === '') {
+    return data
+  }
+  
+  // 移除开头的点号（如果有）
+  if (path.startsWith('.')) {
+    path = path.substring(1)
+  }
+  
+  let current = data
+  let segments = []
+  
+  // 解析路径段
+  let i = 0
+  while (i < path.length) {
+    if (path[i] === '.') {
+      i++
+      continue
+    }
+    
+    if (path[i] === '[') {
+      // 处理数组索引
+      const endBracket = path.indexOf(']', i)
+      if (endBracket === -1) {
+        throw new Error('Invalid JSONPath: missing closing bracket')
+      }
+      
+      const indexStr = path.substring(i + 1, endBracket)
+      const index = parseInt(indexStr, 10)
+      
+      if (isNaN(index)) {
+        throw new Error(`Invalid JSONPath: invalid array index "${indexStr}"`)
+      }
+      
+      segments.push(index)
+      i = endBracket + 1
+    } else {
+      // 处理对象属性
+      let end = i
+      while (end < path.length && path[end] !== '.' && path[end] !== '[') {
+        end++
+      }
+      
+      const property = path.substring(i, end)
+      if (property) {
+        segments.push(property)
+      }
+      i = end
+    }
+  }
+  
+  // 遍历路径段获取值
+  for (const segment of segments) {
+    if (current === null || current === undefined) {
+      return undefined
+    }
+    
+    if (typeof segment === 'number') {
+      // 数组索引
+      if (!Array.isArray(current)) {
+        return undefined
+      }
+      current = current[segment]
+    } else {
+      // 对象属性
+      if (typeof current !== 'object' || Array.isArray(current)) {
+        return undefined
+      }
+      current = current[segment]
+    }
+  }
+  
+  return current
+}

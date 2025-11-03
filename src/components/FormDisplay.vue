@@ -3,15 +3,15 @@
     <div class="display-header">
       <h3>动态表单</h3>
       <div class="header-actions">
-        <el-button 
-          size="small" 
+        <el-button
+          size="small"
           @click="clearAllMappings"
           :icon="Delete"
         >
           清除所有映射
         </el-button>
-        <el-button 
-          size="small" 
+        <el-button
+          size="small"
           @click="clearActiveField"
           :icon="Close"
         >
@@ -20,58 +20,27 @@
       </div>
     </div>
     
-    <div class="display-content">
-      <FormEngine 
-        :schema="schema" 
-        @field-focus="handleFieldFocus"
-      />
-    </div>
-    
-    <div class="display-footer">
-      <el-divider>映射结果</el-divider>
-      
-      <div class="mapping-summary">
-        <h4>当前映射数量: {{ mappingCount }}</h4>
-        <el-button 
-          v-if="mappingCount > 0"
-          size="small" 
-          type="primary" 
-          @click="exportMappings"
-          :icon="Download"
-        >
-          导出映射
-        </el-button>
-      </div>
-      
-      <div class="mapping-display">
-        <el-input
-          :model-value="formattedMappings"
-          type="textarea"
-          :rows="10"
-          readonly
-          placeholder="映射结果将在这里显示..."
+    <div class="display-main">
+      <div class="form-section">
+        <FormEngine
+          :schema="schema"
+          :variables="variables"
+          @field-focus="handleFieldFocus"
         />
       </div>
-      
-      <div v-if="Object.keys(inputMappings).length > 0" class="mapping-list">
-        <h4>映射列表:</h4>
-        <el-table :data="mappingTableData" size="small" border>
-          <el-table-column prop="fieldName" label="字段名" width="150" />
-          <el-table-column prop="fieldTitle" label="字段标题" width="120" />
-          <el-table-column prop="expression" label="映射表达式" min-width="200" />
-          <el-table-column label="操作" width="80">
-            <template #default="{ row }">
-              <el-button 
-                size="small" 
-                type="danger" 
-                @click="removeMapping(row.fieldName)"
-                :icon="Delete"
-              >
-                删除
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+      <div class="mapping-section">
+        <div class="mapping-summary">
+          <h4>当前映射数量: {{ mappingCount }}</h4>
+        </div>
+        <div class="mapping-display">
+          <el-input
+            :model-value="formattedMappings"
+            type="textarea"
+            :rows="20"
+            readonly
+            placeholder="映射结果将在这里显示..."
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -88,6 +57,10 @@ const props = defineProps({
   schema: {
     type: Object,
     required: true
+  },
+  variables: {
+    type: Object,
+    default: () => ({})
   }
 })
 
@@ -110,7 +83,8 @@ const mappingTableData = computed(() => {
       fieldName,
       fieldTitle: field?.title || fieldName,
       expression: mapping.expression,
-      source: mapping.source
+      source: mapping.source,
+      fixedValue: mapping.fixedValue || ''
     }
   })
 })
@@ -141,15 +115,6 @@ const clearAllMappings = async () => {
   }
   
   try {
-    await ElMessageBox.confirm(
-      `确定要清除所有 ${mappingCount.value} 个映射吗？`,
-      '确认清除',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
     
     // 清除所有映射
     Object.keys(inputMappings.value).forEach(fieldName => {
@@ -160,25 +125,6 @@ const clearAllMappings = async () => {
   } catch {
     // 用户取消操作
   }
-}
-
-// 导出映射
-const exportMappings = () => {
-  const mappingData = {
-    timestamp: new Date().toISOString(),
-    mappingCount: mappingCount.value,
-    inputMappings: inputMappings.value
-  }
-  
-  const dataStr = JSON.stringify(mappingData, null, 2)
-  const dataBlob = new Blob([dataStr], { type: 'application/json' })
-  
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(dataBlob)
-  link.download = `form-mappings-${new Date().toISOString().split('T')[0]}.json`
-  link.click()
-  
-  ElMessage.success('映射数据已导出')
 }
 </script>
 
@@ -209,18 +155,26 @@ const exportMappings = () => {
   gap: 8px;
 }
 
-.display-content {
+.display-main {
   flex: 1;
+  display: flex;
+  gap: 20px;
+  padding: 0 16px 16px;
   overflow-y: auto;
-  padding: 0;
 }
 
-.display-footer {
-  border-top: 1px solid #e4e7ed;
-  background-color: #fafafa;
-  padding: 16px;
-  max-height: 50vh;
+.form-section {
+  flex: 2;
   overflow-y: auto;
+}
+
+.mapping-section {
+  flex: 1;
+  border-left: 1px solid #e4e7ed;
+  padding-left: 16px;
+  background-color: #fafafa;
+  display: flex;
+  flex-direction: column;
 }
 
 .mapping-summary {
@@ -236,7 +190,9 @@ const exportMappings = () => {
 }
 
 .mapping-display {
+  flex: 1;
   margin-bottom: 16px;
+  overflow-y: auto;
 }
 
 .mapping-list h4 {

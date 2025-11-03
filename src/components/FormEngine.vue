@@ -6,6 +6,7 @@
           :field="field"
           :fieldName="key"
           :modelValue="formData[key]"
+          :variables="variables"
           @update:modelValue="updateFieldValue(key, $event)"
           @field-focus="handleFieldFocus"
         />
@@ -23,6 +24,10 @@ const props = defineProps({
   schema: {
     type: Object,
     required: true
+  },
+  variables: {
+    type: Object,
+    default: () => ({})
   }
 })
 
@@ -43,6 +48,18 @@ const formFields = computed(() => {
 const updateFieldValue = (fieldName, value) => {
   formData.value[fieldName] = value
   mappingStore.updateFormData(fieldName, value)
+
+  // 判断输入模式，传入不同的参数调用addMapping
+  const field = formFields.value[fieldName]
+  if (!field) return
+
+  // 视字段是否可切换固定/表达式模式，默认固定值对应库存储需要的映射
+  // 此处简化判断，字段选择固定值即为FIXED_VALUE，表达式即EXPRESSION
+  if (field.inputMode === 'fixed') {
+    mappingStore.addMapping(fieldName, value, { source: 'FIXED_VALUE' })
+  } else {
+    mappingStore.addMapping(fieldName, value, { source: 'EXPRESSION' })
+  }
 }
 
 // 处理字段聚焦事件
@@ -83,6 +100,6 @@ onMounted(() => {
 }
 
 .el-form {
-  max-width: 600px;
+  max-width: 1200px;
 }
 </style>

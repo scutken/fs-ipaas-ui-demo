@@ -47,6 +47,16 @@
                 "showPassword": false,
                 "prop": "s4"
             },
+            "s5": {
+                "schemaType": "string_input",
+                "apiName": "s5",
+                "title": "多行文本",
+                "type": "string",
+                "widget": "input",
+                "multiline": true,
+                "showPassword": false,
+                "prop": "s5"
+            },
             "n1": {
                 "schemaType": "number_input",
                 "apiName": "n1",
@@ -108,30 +118,6 @@
                 "multiple": true,
                 "dynamicOptions": false,
                 "prop": "o2"
-            },
-            "o3": {
-                "schemaType": "select",
-                "apiName": "o3",
-                "title": "动态表单选项",
-                "type": "string",
-                "widget": "select",
-                "options": [
-                    {
-                        "value": "A",
-                        "label": "表单A",
-                        "disabled": false,
-                        "group": null
-                    },
-                    {
-                        "value": "B",
-                        "label": "表单B",
-                        "disabled": false,
-                        "group": null
-                    }
-                ],
-                "multiple": false,
-                "dynamicOptions": false,
-                "prop": "o3"
             },
             "sub": {
                 "schemaType": "object",

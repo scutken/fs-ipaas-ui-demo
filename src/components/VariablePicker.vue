@@ -2,26 +2,12 @@
   <div class="variable-picker">
     <div class="picker-header">
       <h3>变量选择器</h3>
-      <el-input
-        v-model="searchText"
-        placeholder="搜索变量..."
-        :prefix-icon="Search"
-        clearable
-        size="small"
-      />
+      <el-input v-model="searchText" placeholder="搜索变量..." :prefix-icon="Search" clearable size="small" />
     </div>
-    
+
     <div class="picker-content">
-      <el-tree
-        ref="treeRef"
-        :data="filteredTreeData"
-        :props="treeProps"
-        :expand-on-click-node="false"
-        :check-on-click-node="false"
-        node-key="id"
-        :filter-node-method="filterNode"
-        @node-click="handleNodeClick"
-      >
+      <el-tree ref="treeRef" :data="filteredTreeData" :props="treeProps" :expand-on-click-node="false"
+        :check-on-click-node="false" node-key="id" :filter-node-method="filterNode" @node-click="handleNodeClick">
         <template #default="{ node, data }">
           <div class="tree-node" :class="{ 'leaf-node': data.isLeaf }">
             <el-icon v-if="!data.isLeaf" class="node-icon">
@@ -31,45 +17,34 @@
             <el-icon v-else class="node-icon" :style="{ color: getTypeIconColor(data.valueType) }">
               <component :is="getTypeIcon(data.valueType)" />
             </el-icon>
-            <span class="node-label">{{ data.label }}</span>
-            <el-tag
-              v-if="data.isLeaf && data.valueType"
-              size="small"
-              :type="getTypeTagType(data.valueType)"
-              class="value-tag"
-            >
-              {{ data.valueType }}
-            </el-tag>
+            <div class="node-content">
+              <span class="node-label">{{ data.label }}</span>
+              <div v-if="data.isLeaf" class="node-value-info">
+                <span class="node-value">{{ formatValue(data.value) }}</span>
+                <el-tag v-if="data.valueType" size="small" :type="getTypeTagType(data.valueType)" class="value-tag">
+                  {{ data.valueType }}
+                </el-tag>
+              </div>
+            </div>
           </div>
         </template>
       </el-tree>
     </div>
-    
+
     <div class="picker-footer">
-      <el-alert
-        v-if="activeFieldInfo"
-        :title="`当前活动字段: ${activeFieldInfo.field?.title || activeFieldInfo.fieldName}`"
-        type="info"
-        :closable="false"
-        show-icon
-      />
-      <el-alert
-        v-else
-        title="请先点击右侧表单中的输入框"
-        type="warning"
-        :closable="false"
-        show-icon
-      />
+      <el-alert v-if="activeFieldInfo" :title="`当前活动字段: ${activeFieldInfo.field?.title || activeFieldInfo.fieldName}`"
+        type="info" :closable="false" show-icon />
+      <el-alert v-else title="请先点击右侧表单中的输入框" type="warning" :closable="false" show-icon />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useMappingStore } from '@/stores/mapping'
 import { buildTreeData, generateJsonPath, isLeafNode } from '@/utils/jsonPath'
-import { Search, Folder, FolderOpened, Document, List, Key, Calendar, Switch, Collection, DataAnalysis } from '@element-plus/icons-vue'
+import { Collection, DataAnalysis, Document, Folder, FolderOpened, Key, List, Search, Switch } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
   variables: {
@@ -111,21 +86,23 @@ const handleNodeClick = (data, node) => {
     node.expanded = !node.expanded
     return
   }
-  
-  // 检查是否有活动字段
-  if (!activeFieldInfo.value) {
-    ElMessage.warning('请先点击右侧表单中的输入框')
-    return
+
+  // 检查是否有活动字段，并判断输入模式是否为表达式
+  if (activeFieldInfo.value) {
+    if (activeFieldInfo.value.inputMode === 'expression') {
+      // 生成 JSONPath
+      const jsonPath = generateJsonPath(data.path)
+      // 添加映射
+      mappingStore.addMapping(activeFieldInfo.value.fieldName, jsonPath)
+      // 更新表达式输入框的值
+      mappingStore.updateFormData(activeFieldInfo.value.fieldName, jsonPath)
+      // 显示成功消息
+      ElMessage.success(`已将变量 "${jsonPath}" 映射到字段 "${activeFieldInfo.value.field?.title || activeFieldInfo.value.fieldName}"`)
+    } else {
+      // 不是表达式模式，发出警告
+      ElMessage.warning('表达式模式才可以选择变量')
+    }
   }
-  
-  // 生成 JSONPath
-  const jsonPath = generateJsonPath(data.path)
-  
-  // 添加映射
-  mappingStore.addMapping(activeFieldInfo.value.fieldName, jsonPath)
-  
-  // 显示成功消息
-  ElMessage.success(`已将变量 "${jsonPath}" 映射到字段 "${activeFieldInfo.value.field?.title || activeFieldInfo.value.fieldName}"`)
 }
 
 // 过滤节点
@@ -139,17 +116,6 @@ watch(searchText, (val) => {
   treeRef.value?.filter(val)
 })
 
-// 获取数据类型
-const getValueType = (value) => {
-  if (value === null) return 'null'
-  if (value === undefined) return 'undefined'
-  if (Array.isArray(value)) return 'array'
-  if (typeof value === 'object') return 'object'
-  if (typeof value === 'string') return 'string'
-  if (typeof value === 'number') return 'number'
-  if (typeof value === 'boolean') return 'boolean'
-  return 'unknown'
-}
 
 // 根据数据类型获取图标
 const getTypeIcon = (type) => {
@@ -194,6 +160,21 @@ const getTypeTagType = (type) => {
     'unknown': 'info'
   }
   return tagTypeMap[type] || 'info'
+}
+
+// 格式化显示值
+const formatValue = (value) => {
+  if (value === null) return 'null'
+  if (value === undefined) return 'undefined'
+  if (typeof value === 'string') {
+    // 限制字符串长度，避免显示过长
+    return value.length > 50 ? `"${value.substring(0, 50)}..."` : `"${value}"`
+  }
+  if (typeof value === 'number') return value.toString()
+  if (typeof value === 'boolean') return value.toString()
+  if (Array.isArray(value)) return `Array(${value.length})`
+  if (typeof value === 'object') return 'Object'
+  return String(value)
 }
 
 // 展开所有节点（可选）
@@ -271,7 +252,7 @@ defineExpose({
 
 .tree-node {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
   padding: 4px 0;
 }
@@ -287,26 +268,52 @@ defineExpose({
 
 .node-icon {
   margin-right: 8px;
+  margin-top: 2px;
   color: #909399;
+  flex-shrink: 0;
+}
+
+.node-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .node-label {
-  flex: 1;
   font-size: 14px;
   color: #303133;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 2px;
 }
 
 .leaf-node .node-label {
   color: #409eff;
-  font-weight: 500;
+  font-weight: 600;
 }
 
-.value-tag {
-  margin-left: 8px;
-  max-width: 100px;
+.node-value-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.node-value {
+  font-size: 12px;
+  color: #666;
+  font-family: 'Courier New', monospace;
+  background-color: #f8f9fa;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #e9ecef;
+  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.value-tag {
+  flex-shrink: 0;
 }
 
 :deep(.el-tree-node__content) {

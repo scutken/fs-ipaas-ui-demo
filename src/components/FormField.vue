@@ -1,135 +1,104 @@
 <template>
   <div class="form-field">
-    <!-- 字符串输入框 -->
-    <el-form-item 
-      v-if="field.schemaType === 'string_input'" 
-      :label="field.title"
-      :class="{ 'active-field': isActiveField }"
-    >
-      <el-input
-        :model-value="modelValue"
-        @update:model-value="$emit('update:modelValue', $event)"
-        @focus="handleFocus"
-        :placeholder="field.placeholder"
-        :show-password="field.showPassword"
-        :type="field.multiline ? 'textarea' : 'text'"
-        :rows="field.multiline ? 4 : undefined"
-      />
-      <div v-if="mappedExpression" class="mapping-indicator">
-        <el-tag size="small" type="info">{{ mappedExpression }}</el-tag>
+    <!-- 普通类型 -->
+    <el-form-item :class="{ 'active-field': isActiveField }" @focus="handleFocus"
+      v-if="field.schemaType !== 'object' & field.schemaType !== 'array'">
+      <!-- 切换固定值和表达式 -->
+      <template #label>
+        <div class="label-wrapper">
+          <span>{{ field.title }}</span>
+          <div class="mode-toggle">
+            <el-button-group size="small">
+              <el-button :type="inputMode === 'fixed' ? 'primary' : ''" @click="setInputMode('fixed')" size="small">
+                固定值
+              </el-button>
+              <el-button :type="inputMode === 'expression' ? 'primary' : ''" @click="setInputMode('expression')"
+                size="small">
+                表达式
+              </el-button>
+            </el-button-group>
+          </div>
+        </div>
+      </template>
+
+      <!-- 字段输入框 -->
+      <div class="field-wrapper">
+        <div class="input-container">
+          <!-- 表达式输入 -->
+          <ExpressionInput v-if="inputMode === 'expression'" :model-value="modelValue" @focus="handleFocus"
+            @update:model-value="$emit('update:modelValue', $event)" :variables="variables"
+            :placeholder="'输入JSONPath表达式，如：$.querySfOrder.TotalAmount'" />
+
+          <!-- 文本输入 -->
+          <el-input v-else-if="field.schemaType === 'string_input'" :model-value="modelValue" @focus="handleFocus"
+            @update:model-value="$emit('update:modelValue', $event)"
+            :placeholder="field.placeholder"
+            :show-password="field.showPassword"
+            :type="field.multiline ? 'textarea' : 'text'"
+            :rows="field.multiline ? 4 : undefined"
+            style="width: 100%" />
+
+          <!-- 数字输入 -->
+          <el-input-number v-else-if="field.schemaType === 'number_input'" :model-value="modelValue" @focus="handleFocus"
+            @update:model-value="$emit('update:modelValue', $event)" style="width: 100%" />
+
+          <!-- 选择器 -->
+          <el-select v-else-if="field.schemaType === 'select'" :model-value="modelValue" @focus="handleFocus"
+            @update:model-value="$emit('update:modelValue', $event)" :multiple="field.multiple" style="width: 100%"
+            :placeholder="`请选择${field.title}`">
+            <el-option v-for="option in field.options" :key="option.value" :label="option.label" :value="option.value"
+              :disabled="option.disabled" />
+          </el-select>
+        </div>
       </div>
     </el-form-item>
 
-    <!-- 数字输入框 -->
-    <el-form-item 
-      v-else-if="field.schemaType === 'number_input'" 
-      :label="field.title"
-      :class="{ 'active-field': isActiveField }"
-    >
-      <el-input-number
-        :model-value="modelValue"
-        @update:model-value="$emit('update:modelValue', $event)"
-        @focus="handleFocus"
-        style="width: 100%"
-      />
-      <div v-if="mappedExpression" class="mapping-indicator">
-        <el-tag size="small" type="info">{{ mappedExpression }}</el-tag>
-      </div>
-    </el-form-item>
-
-    <!-- 选择框 -->
-    <el-form-item 
-      v-else-if="field.schemaType === 'select'" 
-      :label="field.title"
-      :class="{ 'active-field': isActiveField }"
-    >
-      <el-select
-        :model-value="modelValue"
-        @update:model-value="$emit('update:modelValue', $event)"
-        @focus="handleFocus"
-        :multiple="field.multiple"
-        style="width: 100%"
-        :placeholder="`请选择${field.title}`"
-      >
-        <el-option
-          v-for="option in field.options"
-          :key="option.value"
-          :label="option.label"
-          :value="option.value"
-          :disabled="option.disabled"
-        />
-      </el-select>
-      <div v-if="mappedExpression" class="mapping-indicator">
-        <el-tag size="small" type="info">{{ mappedExpression }}</el-tag>
-      </div>
-    </el-form-item>
 
     <!-- 对象类型 - 嵌套表单 -->
-    <el-form-item 
-      v-else-if="field.schemaType === 'object'" 
-      :label="field.title"
-    >
+    <el-form-item v-else-if="field.schemaType === 'object'" :label="field.title">
       <el-card class="nested-form">
         <template v-for="(subField, subKey) in field.properties" :key="subKey">
-          <FormField
-            :field="subField"
-            :fieldName="`${fieldName}.${subKey}`"
-            :modelValue="getNestedValue(subKey)"
-            @update:modelValue="updateNestedValue(subKey, $event)"
-            @field-focus="$emit('field-focus', $event)"
-          />
+          <FormField :field="subField" :fieldName="`${fieldName}.${subKey}`" :modelValue="getNestedValue(subKey)"
+            @update:modelValue="updateNestedValue(subKey, $event)" @field-focus="$emit('field-focus', $event)" />
         </template>
       </el-card>
     </el-form-item>
 
     <!-- 数组类型 - 动态列表 -->
-    <el-form-item 
-      v-else-if="field.schemaType === 'array'" 
-      :label="field.title"
-    >
+    <el-form-item v-else-if="field.schemaType === 'array'" :label="field.title">
       <div class="array-form">
         <div v-for="(item, index) in arrayValue" :key="index" class="array-item">
           <el-card>
             <template #header>
               <div class="array-item-header">
                 <span>{{ field.title }} #{{ index + 1 }}</span>
-                <el-button 
-                  type="danger" 
-                  size="small" 
-                  @click="removeArrayItem(index)"
-                  :icon="Delete"
-                >
+                <el-button type="danger" size="small" @click="removeArrayItem(index)" :icon="Delete">
                   删除
                 </el-button>
               </div>
             </template>
             <template v-for="(subField, subKey) in field.items.properties" :key="subKey">
-              <FormField
-                :field="subField"
-                :fieldName="`${fieldName}[${index}].${subKey}`"
+              <FormField :field="subField" :fieldName="`${fieldName}[${index}].${subKey}`"
                 :modelValue="getArrayItemValue(index, subKey)"
                 @update:modelValue="updateArrayItemValue(index, subKey, $event)"
-                @field-focus="$emit('field-focus', $event)"
-              />
+                @field-focus="$emit('field-focus', $event)" />
             </template>
           </el-card>
         </div>
-        <el-button 
-          type="primary" 
-          @click="addArrayItem"
-          :icon="Plus"
-        >
+        <el-button type="primary" @click="addArrayItem" :icon="Plus">
           {{ field.addText || '添加' }}
         </el-button>
       </div>
     </el-form-item>
+
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
 import { useMappingStore } from '@/stores/mapping'
 import { Delete, Plus } from '@element-plus/icons-vue'
+import { computed, ref } from 'vue'
+import ExpressionInput from './ExpressionInput.vue'
 
 const props = defineProps({
   field: {
@@ -143,6 +112,10 @@ const props = defineProps({
   modelValue: {
     type: [String, Number, Array, Object],
     default: ''
+  },
+  variables: {
+    type: Object,
+    default: () => ({})
   }
 })
 
@@ -150,14 +123,17 @@ const emit = defineEmits(['update:modelValue', 'field-focus'])
 
 const mappingStore = useMappingStore()
 
+// 输入模式：'fixed' 固定值，'expression' 表达式
+const inputMode = ref('fixed')
+
+const setInputMode = (mode) => {
+  inputMode.value = mode
+  handleFocus()
+}
+
 // 检查是否为当前活动字段
 const isActiveField = computed(() => {
   return mappingStore.activeField?.fieldName === props.fieldName
-})
-
-// 获取字段的映射表达式
-const mappedExpression = computed(() => {
-  return mappingStore.getFieldMapping(props.fieldName)
 })
 
 // 数组值处理
@@ -169,7 +145,8 @@ const arrayValue = computed(() => {
 const handleFocus = () => {
   emit('field-focus', {
     fieldName: props.fieldName,
-    field: props.field
+    field: props.field,
+    inputMode: inputMode.value
   })
 }
 
@@ -209,7 +186,7 @@ const updateArrayItemValue = (index, subKey, value) => {
 const addArrayItem = () => {
   const newArray = [...arrayValue.value]
   const newItem = {}
-  
+
   // 初始化新项的字段
   if (props.field.items?.properties) {
     Object.keys(props.field.items.properties).forEach(key => {
@@ -223,7 +200,7 @@ const addArrayItem = () => {
       }
     })
   }
-  
+
   newArray.push(newItem)
   emit('update:modelValue', newArray)
 }
@@ -248,6 +225,46 @@ const removeArrayItem = (index) => {
   background-color: #f0f9ff;
 }
 
+.label-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 16px;
+}
+
+.field-wrapper {
+  position: relative;
+}
+
+.input-container {
+  width: 100%;
+}
+
+.mode-toggle {
+  flex-shrink: 0;
+}
+
+.mode-toggle .el-button-group {
+  display: flex;
+}
+
+.mode-toggle .el-button {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.mode-toggle .el-button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.mode-toggle .el-button:last-child {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
 .mapping-indicator {
   margin-top: 4px;
 }
@@ -268,5 +285,18 @@ const removeArrayItem = (index) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .label-wrapper {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .mode-toggle {
+    align-self: flex-start;
+  }
 }
 </style>

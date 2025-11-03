@@ -22,13 +22,22 @@ export const useMappingStore = defineStore('mapping', () => {
   }
   
   // 添加映射
-  const addMapping = (fieldName, jsonPath) => {
-    if (!fieldName || !jsonPath) return
-    
-    inputMappings.value[fieldName] = {
-      apiName: fieldName,
-      source: 'EXPRESSION',
-      expression: jsonPath
+  const addMapping = (fieldName, value, options = {}) => {
+    if (!fieldName || value === undefined || value === null) return
+  
+    if (options.source === 'FIXED_VALUE') {
+      inputMappings.value[fieldName] = {
+        apiName: fieldName,
+        source: 'FIXED_VALUE',
+        fixedValue: value,
+        expression: ''
+      }
+    } else {
+      inputMappings.value[fieldName] = {
+        apiName: fieldName,
+        source: 'EXPRESSION',
+        expression: value
+      }
     }
   }
   

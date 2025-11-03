@@ -8,6 +8,24 @@
           <div class="header-info">
             <el-tag type="info">Vue 3 + Element Plus</el-tag>
             <el-tag type="success">概念验证</el-tag>
+            <el-button-group class="edit-buttons">
+              <el-button
+                size="small"
+                type="primary"
+                @click="openSchemaEditor"
+                icon="Edit"
+              >
+                编辑Schema
+              </el-button>
+              <el-button
+                size="small"
+                type="success"
+                @click="openVariablesEditor"
+                icon="Edit"
+              >
+                编辑Variables
+              </el-button>
+            </el-button-group>
           </div>
         </div>
       </el-header>
@@ -21,7 +39,7 @@
         
         <!-- 右侧表单展示区 -->
         <el-main class="right-panel">
-          <FormDisplay :schema="schemaData" />
+          <FormDisplay :schema="schemaData" :variables="variablesData" />
         </el-main>
       </el-container>
       
@@ -44,6 +62,42 @@
       class="loading-overlay"
     >
     </div>
+    
+    <!-- Schema编辑器模态框 -->
+    <el-dialog
+      v-model="schemaEditorVisible"
+      title="Schema数据编辑器"
+      width="80%"
+      :before-close="handleSchemaEditorClose"
+      destroy-on-close
+      class="json-editor-dialog"
+    >
+      <JsonEditor
+        v-if="schemaEditorVisible"
+        title="Schema数据编辑"
+        :model-value="schemaData"
+        @save="handleSchemaSave"
+        @cancel="schemaEditorVisible = false"
+      />
+    </el-dialog>
+    
+    <!-- Variables编辑器模态框 -->
+    <el-dialog
+      v-model="variablesEditorVisible"
+      title="Variables数据编辑器"
+      width="80%"
+      :before-close="handleVariablesEditorClose"
+      destroy-on-close
+      class="json-editor-dialog"
+    >
+      <JsonEditor
+        v-if="variablesEditorVisible"
+        title="Variables数据编辑"
+        :model-value="variablesData"
+        @save="handleVariablesSave"
+        @cancel="variablesEditorVisible = false"
+      />
+    </el-dialog>
   </div>
 </template>
 
@@ -52,7 +106,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useMappingStore } from '@/stores/mapping'
 import VariablePicker from '@/components/VariablePicker.vue'
 import FormDisplay from '@/components/FormDisplay.vue'
-import { ElMessage } from 'element-plus'
+import JsonEditor from '@/components/JsonEditor.vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Edit } from '@element-plus/icons-vue'
 
 // 响应式数据
 const loading = ref(true)
@@ -60,6 +116,10 @@ const loadingText = ref('正在加载数据...')
 const schemaData = ref({})
 const variablesData = ref({})
 const connectionStatus = ref('已连接')
+
+// 编辑器状态
+const schemaEditorVisible = ref(false)
+const variablesEditorVisible = ref(false)
 
 const mappingStore = useMappingStore()
 
@@ -110,31 +170,7 @@ const loadVariablesData = async () => {
     console.log('Variables 数据加载成功:', data)
   } catch (error) {
     console.error('加载 Variables 数据失败:', error)
-    ElMessage.warning('使用演示数据替代')
-    // 使用演示数据
-    variablesData.value = {
-      user: {
-        name: "张三",
-        email: "zhangsan@example.com",
-        details: {
-          address: "北京市朝阳区",
-          phone: "13800138000"
-        }
-      },
-      order: {
-        id: "ORD001",
-        amount: 1000,
-        status: "已完成",
-        items: [
-          { name: "商品A", price: 500 },
-          { name: "商品B", price: 500 }
-        ]
-      },
-      system: {
-        timestamp: "2024-01-01T00:00:00Z",
-        version: "1.0.0"
-      }
-    }
+    ElMessage.warning('加载 Variables 数据失败')
   }
 }
 
@@ -186,6 +222,129 @@ window.addEventListener('unhandledrejection', (event) => {
   console.error('未处理的 Promise 拒绝:', event.reason)
   ElMessage.error('发生异步错误，请查看控制台')
 })
+
+// 编辑器相关函数
+// 打开Schema编辑器
+const openSchemaEditor = () => {
+  schemaEditorVisible.value = true
+}
+
+// 打开Variables编辑器
+const openVariablesEditor = () => {
+  variablesEditorVisible.value = true
+}
+
+// 处理Schema编辑器关闭
+const handleSchemaEditorClose = (done) => {
+  ElMessageBox.confirm(
+    '确定要关闭编辑器吗？未保存的更改将丢失。',
+    '确认关闭',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(() => {
+    done()
+  }).catch(() => {
+    // 取消关闭
+  })
+}
+
+// 处理Variables编辑器关闭
+const handleVariablesEditorClose = (done) => {
+  ElMessageBox.confirm(
+    '确定要关闭编辑器吗？未保存的更改将丢失。',
+    '确认关闭',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(() => {
+    done()
+  }).catch(() => {
+    // 取消关闭
+  })
+}
+
+// 处理Schema保存
+const handleSchemaSave = async (newSchemaData) => {
+  try {
+    // 验证Schema数据格式
+    if (!newSchemaData.objectSchema?.properties) {
+      throw new Error('Schema数据格式不正确，缺少objectSchema.properties')
+    }
+    
+    // 更新本地数据
+    schemaData.value = newSchemaData
+    
+    // 这里可以添加保存到服务器的逻辑
+    // await saveSchemaToServer(newSchemaData)
+    
+    // 关闭编辑器
+    schemaEditorVisible.value = false
+    
+    // 重新初始化映射存储（因为Schema可能发生变化）
+    mappingStore.clearMappings()
+    
+    ElMessage.success('Schema数据保存成功')
+    console.log('Schema数据已更新:', newSchemaData)
+    
+  } catch (error) {
+    console.error('保存Schema数据失败:', error)
+    ElMessage.error(`保存失败: ${error.message}`)
+  }
+}
+
+// 处理Variables保存
+const handleVariablesSave = async (newVariablesData) => {
+  try {
+    // 验证Variables数据格式
+    if (typeof newVariablesData !== 'object' || newVariablesData === null) {
+      throw new Error('Variables数据格式不正确，必须是对象类型')
+    }
+    
+    // 更新本地数据
+    variablesData.value = newVariablesData
+    
+    // 这里可以添加保存到服务器的逻辑
+    // await saveVariablesToServer(newVariablesData)
+    
+    // 关闭编辑器
+    variablesEditorVisible.value = false
+    
+    ElMessage.success('Variables数据保存成功')
+    console.log('Variables数据已更新:', newVariablesData)
+    
+  } catch (error) {
+    console.error('保存Variables数据失败:', error)
+    ElMessage.error(`保存失败: ${error.message}`)
+  }
+}
+
+// 保存到服务器的函数（可选实现）
+const saveSchemaToServer = async (schemaData) => {
+  // 这里可以实现保存到服务器的逻辑
+  // 例如：
+  // const response = await fetch('/api/schema', {
+  //   method: 'POST',
+  //   headers: { 'Content-Type': 'application/json' },
+  //   body: JSON.stringify(schemaData)
+  // })
+  // if (!response.ok) throw new Error('保存到服务器失败')
+}
+
+const saveVariablesToServer = async (variablesData) => {
+  // 这里可以实现保存到服务器的逻辑
+  // 例如：
+  // const response = await fetch('/api/variables', {
+  //   method: 'POST',
+  //   headers: { 'Content-Type': 'application/json' },
+  //   body: JSON.stringify(variablesData)
+  // })
+  // if (!response.ok) throw new Error('保存到服务器失败')
+}
 </script>
 
 <style scoped>
@@ -221,7 +380,22 @@ window.addEventListener('unhandledrejection', (event) => {
 
 .header-info {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
+}
+
+.edit-buttons {
+  margin-left: 12px;
+}
+
+.edit-buttons .el-button {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.edit-buttons .el-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .main-container {
@@ -342,5 +516,65 @@ window.addEventListener('unhandledrejection', (event) => {
 
 :deep(.el-scrollbar__wrap::-webkit-scrollbar-thumb:hover) {
   background: #a8a8a8;
+}
+
+/* JSON编辑器模态框样式 */
+.json-editor-dialog {
+  --el-dialog-padding-primary: 0;
+}
+
+.json-editor-dialog :deep(.el-dialog__body) {
+  padding: 0;
+  height: 70vh;
+  overflow: hidden;
+}
+
+.json-editor-dialog :deep(.el-dialog__header) {
+  padding: 20px 20px 0;
+  margin-bottom: 0;
+}
+
+.json-editor-dialog :deep(.el-dialog__title) {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+}
+
+/* 响应式编辑器模态框 */
+@media (max-width: 768px) {
+  .json-editor-dialog {
+    width: 95% !important;
+    margin: 0 auto;
+  }
+  
+  .json-editor-dialog :deep(.el-dialog__body) {
+    height: 60vh;
+  }
+  
+  .edit-buttons {
+    margin-left: 8px;
+  }
+  
+  .edit-buttons .el-button {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-info {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  
+  .edit-buttons {
+    margin-left: 0;
+    justify-content: center;
+  }
+  
+  .edit-buttons .el-button {
+    flex: 1;
+  }
 }
 </style>
